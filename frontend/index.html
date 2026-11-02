@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI System Failure Investigator</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233b5bdb'/%3E%3Cpath d='M16 7l9 16H7z' fill='none' stroke='white' stroke-width='2.4' stroke-linejoin='round'/%3E%3Cpath d='M16 13v5M16 20.5v.5' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>AI System Failure Investigator</h1>
+      <p class="sub">Paste an error log from an AI system. The model reads it, tells you what kind of failure it is and how sure it is, shows the words that gave it away, and suggests what to check first.</p>
+    </div>
+    <span id="status" class="pill">connecting…</span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="investigate" role="tab">Investigate</button>
+    <button class="tab" data-tab="logs" role="tab">Log file analysis</button>
+    <button class="tab" data-tab="dashboard" role="tab">Dashboard</button>
+    <button class="tab" data-tab="overview" role="tab">Model overview</button>
+  </nav>
+
+  <main>
+    <!-- ============ Investigate ============ -->
+    <section id="tab-investigate" class="tabpane">
+      <details class="how card">
+        <summary>How does this work?</summary>
+        <ol>
+          <li><strong>You paste</strong> a log line or error message from an AI system.</li>
+          <li><strong>The model reads it</strong> and picks the most likely failure type out of nine, such as timeouts, rate limits, hallucinations or out-of-memory. It also says how sure it is, and when it is not sure it says so instead of guessing.</li>
+          <li><strong>You get</strong> the words it relied on, details pulled out of the text (times, error codes, sizes), likely causes, and what to check first.</li>
+        </ol>
+      </details>
+
+      <div class="card input">
+        <label for="log">Failure log</label>
+        <textarea id="log" rows="5" placeholder="e.g. 2026-11-01 10:22:05 ERROR [rag-service] vector search returned 0 results, empty context passed to llm"></textarea>
+        <div class="row">
+          <button id="analyze" class="primary">Investigate</button>
+          <button id="clear" class="ghost">Clear</button>
+          <span class="hint">Try an example:</span>
+          <div id="examples" class="chips"></div>
+        </div>
+        <p id="error" class="error" hidden></p>
+      </div>
+
+      <div id="result" class="grid" hidden>
+        <div id="unknownBox" class="card wide notice" hidden></div>
+
+        <div class="card">
+          <h2>Diagnosis</h2>
+          <div class="diag">
+            <h3 id="title"></h3>
+            <span id="severity" class="badge"></span>
+          </div>
+          <p id="headline" class="headline"></p>
+          <p class="conf">Confidence: <strong id="conf"></strong> <span id="lowconf" class="warn" hidden>— verify manually</span></p>
+          <div id="bars"></div>
+        </div>
+
+        <div class="card">
+          <h2>Incident report</h2>
+          <p class="muted" id="incidentId"></p>
+          <div class="row tight">
+            <button id="dlMd" class="small">Download Markdown</button>
+            <button id="openHtml" class="small">Printable / PDF</button>
+            <button id="aiSum" class="small">Write AI summary</button>
+          </div>
+          <p class="muted small-note">The AI summary needs the free Ollama app running on your PC (optional).</p>
+          <p id="aiErr" class="error" hidden></p>
+          <div id="aiOut" class="aiout" hidden></div>
+        </div>
+
+        <div class="card wide">
+          <h2>Evidence <small>(darker = more influence on the prediction)</small></h2>
+          <div id="evidence" class="evidence"></div>
+        </div>
+
+        <div class="card">
+          <h2>Extracted details</h2>
+          <div id="entities"></div>
+          <h2 class="gap">Similar past incidents</h2>
+          <div id="similar"></div>
+        </div>
+
+        <div class="card">
+          <h2>Likely root causes</h2>
+          <ul id="causes"></ul>
+          <h2>Suggested actions</h2>
+          <ol id="actions"></ol>
+          <p class="prevent"><strong>Prevention:</strong> <span id="prevent"></span></p>
+          <p class="note" id="note"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row between">
+          <h2>Recent investigations</h2>
+          <button id="clearHist" class="ghost small">Clear history</button>
+        </div>
+        <ul id="history" class="history"></ul>
+      </div>
+    </section>
+
+    <!-- ============ Log file analysis ============ -->
+    <section id="tab-logs" class="tabpane" hidden>
+      <div class="card input">
+        <label for="logText">Log file (one event per line, up to 500 lines)</label>
+        <div class="row tight">
+          <input type="file" id="logFile" accept=".log,.txt,.csv,text/plain" />
+          <button id="sampleLog" class="ghost small">Load a sample log</button>
+        </div>
+        <textarea id="logText" rows="7" placeholder="…or paste several log lines here"></textarea>
+        <div class="row">
+          <button id="analyzeLog" class="primary">Analyze log</button>
+          <span id="logName" class="hint"></span>
+        </div>
+        <p id="logError" class="error" hidden></p>
+      </div>
+      <div id="logResult" hidden>
+        <div id="logTiles" class="tiles"></div>
+        <div id="logAlerts"></div>
+        <div class="card">
+          <h2>Timeline <small id="timelineUnit"></small></h2>
+          <div id="timeline" class="timeline"></div>
+          <div id="legend" class="legend"></div>
+        </div>
+        <div class="card">
+          <div class="row between">
+            <h2>Lines</h2>
+            <select id="lineFilter" aria-label="Filter by category"></select>
+          </div>
+          <div class="scroll"><table id="lineTable" class="tbl"></table></div>
+          <p id="lineNote" class="muted"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Dashboard ============ -->
+    <section id="tab-dashboard" class="tabpane" hidden>
+      <div id="dashTiles" class="tiles"></div>
+      <div class="grid">
+        <div class="card"><h2>Failures by category</h2><div id="dashLabels"></div></div>
+        <div class="card"><h2>By severity</h2><div id="dashSev"></div></div>
+        <div class="card wide"><h2>Recent log runs</h2><div id="dashRuns"></div></div>
+      </div>
+    </section>
+
+    <!-- ============ Model overview ============ -->
+    <section id="tab-overview" class="tabpane" hidden>
+      <div id="ovEmpty" class="card" hidden></div>
+      <div id="ovBody" hidden>
+        <div class="card">
+          <h2>Model comparison</h2>
+          <p class="muted">Two models were tested on the same logs: the app's model and a simple baseline. <strong>Accuracy</strong> is the share of logs labelled correctly. <strong>Macro-F1</strong> is a score from 0 to 1 that treats every failure type equally, so a model cannot look good by only getting the common types right.</p>
+          <p class="muted">The first row is optimistic because its training and test logs share the same wording patterns. The other two rows are the honest ones.</p>
+          <div class="scroll"><table id="ovTable" class="tbl"></table></div>
+        </div>
+        <div class="card">
+          <div class="row between">
+            <h2>Per-class results and confusion matrix</h2>
+            <div class="row tight">
+              <select id="ovExp" aria-label="Experiment"></select>
+              <select id="ovModel" aria-label="Model"></select>
+            </div>
+          </div>
+          <div class="scroll"><table id="ovClass" class="tbl"></table></div>
+          <h2 class="gap">Confusion matrix <small>(rows = true class, columns = predicted)</small></h2>
+          <div class="scroll"><table id="ovCm" class="cm"></table></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">Suggestions only: nothing here changes your systems. The model learned from example logs, so check its answer before you act on it.</footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

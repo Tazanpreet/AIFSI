@@ -1,0 +1,19 @@
+text,label
+The model made up a quote and attributed it to a person who never said it,hallucination
+Generated answer included an api endpoint that is not part of our documentation,hallucination
+User message asked the bot to ignore its safety rules and act without restrictions,prompt_injection
+A shared document told the assistant to leak the conversation history to a third party,prompt_injection
+Retriever returned no matching passages for a question that is clearly covered in the docs,rag_retrieval_failure
+Search index is out of date and newly uploaded manuals are missing from retrieval results,rag_retrieval_failure
+The upstream model server is very slow and many requests end with a gateway timeout,timeout_latency
+Latency of the answer endpoint is far above the target and users see spinners for ages,timeout_latency
+We are being throttled by the provider because we send too many requests too quickly,rate_limit_quota
+Daily token allowance is exhausted so all further calls fail until tomorrow,rate_limit_quota
+Inference container restarted because it ran out of memory,resource_exhaustion
+GPU memory exhausted during generation with a long prompt,resource_exhaustion
+Live traffic no longer looks like the training data and accuracy is falling,data_drift
+A feature changed scale after an upstream update and the model quietly got worse,data_drift
+The agent sent a tool call with a missing field and the tool rejected it,tool_call_error
+Agent got stuck repeating the same action and never finished the task,tool_call_error
+Authentication failed because the token for the model service has expired,config_auth_error
+The service could not start because a required setting was not provided,config_auth_error
